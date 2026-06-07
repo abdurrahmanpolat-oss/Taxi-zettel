@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#185FA5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Taxi Zettel">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Taxi Tageszettel</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#185FA5;--blue-l:#E6F1FB;
+  --green:#1F7A4D;--green-l:#E2EFDA;
+  --red:#A32D2D;--red-l:#FCEBEB;
+  --amber:#854F0B;--amber-l:#FAEEDA;
+  --border:#e0dfd8;--bg:#fff;--bg2:#f7f6f3;--bg3:#f1f0ec;
+  --text:#1a1a18;--text2:#5F5E5A;--text3:#888780;
+  --radius:10px;--radius-lg:14px;
+}
+
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg2);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;-webkit-tap-highlight-color:transparent}
+
+
+body.dark{
+  --border:#3a3935;--bg:#1c1c1a;--bg2:#252523;--bg3:#2e2d2a;
+  --text:#f0efe8;--text2:#b4b2a9;--text3:#888780;
+  --blue-l:#0c2540;--green-l:#0a2018;--red-l:#2a0f0f;--amber-l:#2a1800;
+}
+
+/* Fahrer-Verwaltung */
+.verw-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)}
+.verw-row:last-child{border-bottom:none}
+.verw-name{flex:1;font-size:14px;font-weight:500}
+.verw-taxi{font-size:12px;color:var(--text3);background:var(--bg2);padding:2px 8px;border-radius:12px}
+.verw-del{width:32px;height:32px;border:1px solid var(--border);border-radius:var(--radius);background:var(--red-l);color:var(--red);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.add-fahrer-row{display:flex;gap:8px;margin-top:12px;align-items:flex-end}
+.add-fahrer-row .field{margin-bottom:0;flex:1}
+.add-fahrer-row select{padding:10px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);-webkit-appearance:none;width:100%}
+.add-fahrer-btn{height:40px;padding:0 14px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
+
+/* Topbar */
+.topbar{background:var(--blue);color:#fff;padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar h1{font-size:18px;font-weight:600}
+.topbar p{font-size:12px;opacity:.75;margin-top:1px}
+
+/* Tabbar */
+.tabbar{display:flex;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:60px;z-index:99}
+.tab-btn{flex:1;padding:11px 4px;border:none;background:transparent;color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* Sections */
+.section{display:none;padding:14px 12px 90px}
+.section.active{display:block}
+
+/* Cards */
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:12px}
+.card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:12px}
+
+/* Chips */
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.chip{padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.chip.sel{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* Fields */
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500}
+.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:15px;background:var(--bg);color:var(--text);-webkit-appearance:none}
+.field input:focus,.field select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(24,95,165,.12)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Abzüge */
+.abzug-row{display:flex;gap:7px;margin-bottom:9px;align-items:center}
+.abzug-row input{width:95px;flex-shrink:0;padding:9px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text)}
+.abzug-row select{flex:1;padding:9px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);-webkit-appearance:none}
+.abzug-row .del{width:36px;height:36px;flex-shrink:0;border:1px solid var(--border);border-radius:var(--radius);background:var(--red-l);color:var(--red);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.add-abzug{width:100%;padding:10px;border:1px dashed var(--border);border-radius:var(--radius);background:transparent;color:var(--text2);font-size:13px;cursor:pointer;margin-top:4px}
+
+/* Summary */
+.summary{background:var(--bg2);border-radius:var(--radius);padding:12px;margin-top:12px}
+.sum-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
+.sum-row .lbl{color:var(--text2)}
+.sum-row.total{border-top:1px solid var(--border);margin-top:7px;padding-top:9px;font-size:16px;font-weight:600}
+
+/* Buttons */
+.save-btn{width:100%;padding:14px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-lg);font-size:16px;font-weight:600;cursor:pointer;margin-top:4px}
+.save-btn:active{opacity:.85}
+.btn-outline{padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text2);font-size:13px;cursor:pointer}
+.btn-red{padding:8px 14px;border:1px solid var(--red);border-radius:var(--radius);background:var(--red-l);color:var(--red);font-size:13px;cursor:pointer}
+.btn-green{padding:8px 14px;border:1px solid var(--green);border-radius:var(--radius);background:var(--green-l);color:var(--green);font-size:13px;cursor:pointer;font-weight:500}
+
+/* Toast */
+.toast{display:none;background:var(--green);color:#fff;padding:12px 16px;border-radius:var(--radius);text-align:center;font-size:14px;font-weight:500;margin-top:10px}
+
+/* PIN-Screen */
+.pin-screen{position:fixed;inset:0;background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;padding:24px}
+.pin-screen.hidden{display:none}
+.pin-title{font-size:20px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.pin-sub{font-size:14px;color:var(--text2);margin-bottom:28px}
+.pin-dots{display:flex;gap:14px;margin-bottom:28px}
+.pin-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s}
+.pin-dot.filled{background:var(--blue);border-color:var(--blue)}
+.pin-grid{display:grid;grid-template-columns:repeat(3,72px);gap:12px}
+.pin-key{width:72px;height:72px;border-radius:50%;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:22px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pin-key:active{background:var(--bg3)}
+.pin-key.del{font-size:18px}
+.pin-error{color:var(--red);font-size:13px;margin-top:12px;min-height:20px}
+
+/* Monats-Ordner */
+.monat-btn{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.monat-btn:active{background:var(--bg3)}
+.monat-badge{background:var(--blue-l);color:var(--blue);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.monat-content{display:none;margin-bottom:12px}
+.monat-content.open{display:block}
+
+/* Zettel in Liste */
+.zettel-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:10px}
+.zettel-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.zettel-name{font-size:16px;font-weight:600}
+.zettel-date{font-size:12px;color:var(--text3);margin-top:2px}
+.taxi-badge{padding:3px 9px;border-radius:20px;background:var(--blue-l);color:var(--blue);font-size:12px;font-weight:600}
+.zettel-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.kv .k{font-size:12px;color:var(--text3)}
+.kv .v{font-size:13px;font-weight:500}
+.abz-line{font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.5}
+.zettel-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:10px}
+.bar-val{font-size:18px;font-weight:700}
+.bar-val.pos{color:var(--green)}
+.bar-val.neg{color:var(--red)}
+.del-btn{padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--red-l);color:var(--red);font-size:13px;cursor:pointer}
+
+/* Statistik */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stat-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;text-align:center}
+.stat-val{font-size:20px;font-weight:700}
+.stat-lbl{font-size:11px;color:var(--text3);margin-top:3px}
+.fahrer-stat{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.fahrer-stat .fn{font-size:14px;font-weight:500}
+.fahrer-stat .fd{font-size:12px;color:var(--text3)}
+
+/* Filter */
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px}
+.filter-bar::-webkit-scrollbar{display:none}
+.filter-chip{flex-shrink:0;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text2);font-size:12px;cursor:pointer}
+.filter-chip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+.empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px}
+.empty .ico{font-size:40px;margin-bottom:10px}
+
+/* Export / Reset Buttons Reihe */
+.action-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-bg.hidden{display:none}
+.modal{background:var(--bg);border-radius:var(--radius-lg);padding:20px;width:100%;max-width:340px}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.modal p{font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.5}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end}
+</style>
+</head>
+<body>
+
+<!-- PIN Screen -->
+<div class="pin-screen hidden" id="pin-screen">
+  <div style="font-size:40px;margin-bottom:12px">🔒</div>
+  <div class="pin-title" id="pin-title">PIN eingeben</div>
+  <div class="pin-sub" id="pin-sub">Bitte PIN eingeben um fortzufahren</div>
+  <div class="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-grid">
+    <button class="pin-key" onclick="pinTaste('1')">1</button>
+    <button class="pin-key" onclick="pinTaste('2')">2</button>
+    <button class="pin-key" onclick="pinTaste('3')">3</button>
+    <button class="pin-key" onclick="pinTaste('4')">4</button>
+    <button class="pin-key" onclick="pinTaste('5')">5</button>
+    <button class="pin-key" onclick="pinTaste('6')">6</button>
+    <button class="pin-key" onclick="pinTaste('7')">7</button>
+    <button class="pin-key" onclick="pinTaste('8')">8</button>
+    <button class="pin-key" onclick="pinTaste('9')">9</button>
+    <button class="pin-key" onclick="pinTaste('0')">0</button>
+    <button class="pin-key del" onclick="pinLoeschen()">⌫</button>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+</div>
+
+<!-- Reset Modal -->
+<div class="modal-bg hidden" id="reset-modal">
+  <div class="modal">
+    <h3>⚠️ Alle Daten löschen?</h3>
+    <p>Alle gespeicherten Zettel werden unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.</p>
+    <div class="modal-btns">
+      <button class="btn-outline" onclick="document.getElementById('reset-modal').classList.add('hidden')">Abbrechen</button>
+      <button class="btn-red" onclick="resetBestaetigen()">Löschen</button>
+    </div>
+  </div>
+</div>
+
+<div class="topbar">
+  <div>
+    <h1>🚕 Taxi Tageszettel</h1>
+    <p id="topbar-count">Lade...</p>
+  </div>
+  <button id="theme-btn" onclick="toggleTheme()" style="background:rgba(255,255,255,0.2);border:none;border-radius:20px;padding:6px 12px;color:#fff;font-size:18px;cursor:pointer">☀️</button>
+</div>
+
+<div class="tabbar">
+  <button class="tab-btn active" onclick="showTab('erfassen',this)">✏️ Erfassen</button>
+  <button class="tab-btn" onclick="showTab('liste',this)" id="tab-liste-btn">📋 Liste</button>
+  <button class="tab-btn" onclick="showTab('statistik',this)" id="tab-stat-btn">📊 Statistik</button>
+  <button class="tab-btn" onclick="showTab('verwaltung',this)" id="tab-verw-btn">⚙️</button>
+</div>
+
+
+<!-- ═══ VERWALTUNG ═══ -->
+<div id="tab-verwaltung" class="section">
+  <div class="card">
+    <div class="card-title">Fahrer verwalten</div>
+    <div id="fahrer-liste-verw"></div>
+    <div class="add-fahrer-row">
+      <div class="field">
+        <label>Name</label>
+        <input id="neu-fahrer-name" type="text" placeholder="Fahrername">
+      </div>
+      <div class="field" style="width:90px;flex:none">
+        <label>Taxi-Nr.</label>
+        <select id="neu-fahrer-taxi">
+          <option value="">—</option>
+          <option>76</option>
+          <option>157</option>
+          <option>180</option>
+          <option>185</option>
+          <option>920</option>
+        </select>
+      </div>
+      <button class="add-fahrer-btn" onclick="fahrerHinzufuegen()">+ Hinzufügen</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Taxi-Nummern</div>
+    <div class="chips" id="taxi-chips-verw" style="margin-bottom:0"></div>
+  </div>
+</div>
+
+<!-- ═══ ERFASSEN ═══ -->
+<div id="tab-erfassen" class="section active">
+  <div class="card">
+    <div class="card-title">Fahrer auswählen</div>
+    <div class="chips" id="chips"></div>
+    <div class="row2">
+      <div class="field"><label>Fahrer</label><input id="f-fahrer" type="text" placeholder="Name"></div>
+      <div class="field"><label>Taxi-Nr.</label>
+        <select id="f-taxi">
+          <option value="">— wählen —</option>
+          <option>76</option>
+          <option>157</option>
+          <option>180</option>
+          <option>185</option>
+          <option>920</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Datum</label><input id="f-datum" type="date"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Taxameter-Werte</div>
+    <div class="field">
+      <label>Total — Anfang / Ende</label>
+      <div class="row2">
+        <input id="f-total-a" type="number" placeholder="Anfang" step="0.1">
+        <input id="f-total-e" type="number" placeholder="Ende" step="0.1">
+      </div>
+    </div>
+    <div class="field">
+      <label>Touren — Anfang / Ende</label>
+      <div class="row2">
+        <input id="f-tour-a" type="number" placeholder="Anfang" oninput="berechne()">
+        <input id="f-tour-e" type="number" placeholder="Ende" oninput="berechne()">
+      </div>
+    </div>
+    <div class="field">
+      <label>Fahrpreis — Anfang / Ende</label>
+      <div class="row2">
+        <input id="f-fp-a" type="number" placeholder="Anfang" step="0.01" oninput="berechne()">
+        <input id="f-fp-e" type="number" placeholder="Ende" step="0.01" oninput="berechne()">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Abzüge</div>
+    <div id="abzug-container"></div>
+    <button class="add-abzug" onclick="addAbzug()">+ Abzug hinzufügen</button>
+    <div class="summary">
+      <div class="sum-row"><span class="lbl">Tages-Fahrpreis</span><span id="s-fp">0,00 €</span></div>
+      <div class="sum-row"><span class="lbl">Tages-Touren</span><span id="s-tour">0</span></div>
+      <div class="sum-row"><span class="lbl">Abzüge gesamt</span><span id="s-abz" style="color:var(--red)">− 0,00 €</span></div>
+      <div class="sum-row total">
+        <span>Bar-Summa</span>
+        <span id="s-bar" style="color:var(--green)">0,00 €</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="save-btn" onclick="speichern()">💾 Zettel speichern</button>
+  <div class="toast" id="toast">✅ Zettel gespeichert!</div>
+</div>
+
+<!-- ═══ LISTE ═══ -->
+<div id="tab-liste" class="section">
+  <div class="action-row">
+    <button class="btn-green" onclick="exportExcel()">📥 Excel Export</button>
+    <button class="btn-red" onclick="document.getElementById('reset-modal').classList.remove('hidden')">🗑 Reset</button>
+  </div>
+  <div class="filter-bar" id="filter-bar"></div>
+  <div id="liste-container"></div>
+</div>
+
+<!-- ═══ STATISTIK ═══ -->
+<div id="tab-statistik" class="section">
+  <div class="action-row">
+    <button class="btn-green" onclick="exportExcel()">📥 Excel Export</button>
+  </div>
+  <div class="stat-grid" id="stat-grid"></div>
+  <div class="card">
+    <div class="card-title">Fahrer-Übersicht</div>
+    <div id="fahrer-stats"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Monatsübersicht</div>
+    <div id="monats-stats"></div>
+  </div>
+</div>
+
+<script>
+// ── Konstanten ────────────────────────────────────────────────────────────
+const PIN = '0246';
+const STANDARD_FAHRER = [
+  {name:'Diriye',  taxi:'157'},
+  {name:'Issam',   taxi:'180'},
+  {name:'Kevin',   taxi:'920'},
+  {name:'Müslüm',  taxi:'185'},
+  {name:'Suphi',   taxi:'185'},
+  {name:'Askender',taxi:'157'},
+  {name:'Ibrahim', taxi:'157'},
+  {name:'A. Polat',taxi:''},
+  {name:'Murat',   taxi:''},
+  {name:'Ilhan',   taxi:''},
+];
+const TAXI_NUMMERN = ['76','157','180','185','920'];
+const ABZUG_TYPEN = ['Tanken','Rechnung','EC-Karte','KF Polat','Fehlfahrt','Waschen','Sonstiges'];
+const EUR = v => parseFloat(v||0).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const NUM2 = v => parseFloat(v||0).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+// ── State ─────────────────────────────────────────────────────────────────
+let zettelListe = [];
+let fahrerListe = [];
+let pinOffen = false;
+let pinTarget = '';
+let pinBuffer = '';
+let aktivFilter = '';
+let abzugId = 0;
+
+// ── LocalStorage ──────────────────────────────────────────────────────────
+function laden() {
+  try { zettelListe = JSON.parse(localStorage.getItem('taxi_zettel')||'[]'); } catch(e){ zettelListe=[]; }
+  try {
+    const saved = localStorage.getItem('taxi_fahrer');
+    fahrerListe = saved ? JSON.parse(saved) : [...STANDARD_FAHRER];
+  } catch(e){ fahrerListe=[...STANDARD_FAHRER]; }
+  topbarUpdate();
+  renderFahrerChips();
+  renderVerwaltung();
+}
+function speichernLS() {
+  localStorage.setItem('taxi_zettel', JSON.stringify(zettelListe));
+  topbarUpdate();
+}
+function speichernFahrer() {
+  localStorage.setItem('taxi_fahrer', JSON.stringify(fahrerListe));
+}
+function topbarUpdate() {
+  document.getElementById('topbar-count').textContent = zettelListe.length + ' Zettel gespeichert';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.getElementById('f-datum').value = new Date().toISOString().split('T')[0];
+laden();
+
+// ── PIN-System ────────────────────────────────────────────────────────────
+function zeigePin(target) {
+  pinTarget = target;
+  pinBuffer = '';
+  pinOffen = true;
+  aktualisierDots();
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-screen').classList.remove('hidden');
+}
+
+function pinTaste(zahl) {
+  if(pinBuffer.length >= 4) return;
+  pinBuffer += zahl;
+  aktualisierDots();
+  if(pinBuffer.length === 4) {
+    setTimeout(pinPruefen, 150);
+  }
+}
+
+function pinLoeschen() {
+  pinBuffer = pinBuffer.slice(0,-1);
+  aktualisierDots();
+}
+
+function aktualisierDots() {
+  for(let i=0;i<4;i++){
+    document.getElementById('pd'+i).classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+
+function pinPruefen() {
+  if(pinBuffer === PIN) {
+    document.getElementById('pin-screen').classList.add('hidden');
+    pinOffen = false;
+    const target = pinTarget;
+    pinTarget = '';
+    // Zum Ziel-Tab wechseln
+    if(target === 'liste') {
+      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.getElementById('tab-liste').classList.add('active');
+      document.getElementById('tab-liste-btn').classList.add('active');
+      renderListe();
+    } else if(target === 'statistik') {
+      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.getElementById('tab-statistik').classList.add('active');
+      document.getElementById('tab-stat-btn').classList.add('active');
+      renderStatistik();
+    } else if(target === 'reset') {
+      document.getElementById('reset-modal').classList.remove('hidden');
+    }
+  } else {
+    document.getElementById('pin-error').textContent = '❌ Falscher PIN — bitte erneut versuchen';
+    pinBuffer = '';
+    aktualisierDots();
+  }
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+function showTab(id, btn) {
+  if(id === 'liste' || id === 'statistik') {
+    zeigePin(id);
+    return;
+  }
+  if(id === 'verwaltung') {
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('tab-verwaltung').classList.add('active');
+    document.getElementById('tab-verw-btn').classList.add('active');
+    renderVerwaltung();
+    return;
+  }
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Fahrer wählen ─────────────────────────────────────────────────────────
+function waehleF(name, taxi, el) {
+  document.querySelectorAll('#chips .chip').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('f-fahrer').value = name;
+  if(taxi) document.getElementById('f-taxi').value = taxi;
+}
+
+function renderFahrerChips() {
+  const c = document.getElementById('chips');
+  if(!c) return;
+  c.innerHTML = fahrerListe.map(f =>
+    `<span class="chip" onclick="waehleF('${f.name.replace(/'/g,"\'")}','${f.taxi}',this)">${f.name}</span>`
+  ).join('');
+}
+
+function renderVerwaltung() {
+  // Fahrer-Liste
+  const fl = document.getElementById('fahrer-liste-verw');
+  if(!fl) return;
+  if(!fahrerListe.length){
+    fl.innerHTML='<div style="font-size:13px;color:var(--text3);padding:8px 0">Keine Fahrer. Bitte hinzufügen.</div>';
+  } else {
+    fl.innerHTML = fahrerListe.map((f,i)=>`
+      <div class="verw-row">
+        <span class="verw-name">${f.name}</span>
+        ${f.taxi?`<span class="verw-taxi">Taxi ${f.taxi}</span>`:''}
+        <button class="verw-del" onclick="fahrerEntfernen(${i})">×</button>
+      </div>`).join('');
+  }
+  // Taxi-Chips in Verwaltung (nur anzeigen)
+  const tc = document.getElementById('taxi-chips-verw');
+  if(tc){
+    tc.innerHTML = TAXI_NUMMERN.map(t=>
+      `<span class="chip sel" style="cursor:default">Taxi ${t}</span>`
+    ).join('');
+  }
+}
+
+function fahrerHinzufuegen() {
+  const name = document.getElementById('neu-fahrer-name').value.trim();
+  const taxi = document.getElementById('neu-fahrer-taxi').value;
+  if(!name){ alert('Bitte einen Namen eingeben!'); return; }
+  if(fahrerListe.find(f=>f.name.toLowerCase()===name.toLowerCase())){
+    alert('Dieser Fahrer existiert bereits!'); return;
+  }
+  fahrerListe.push({name, taxi});
+  speichernFahrer();
+  renderFahrerChips();
+  renderVerwaltung();
+  document.getElementById('neu-fahrer-name').value='';
+  document.getElementById('neu-fahrer-taxi').value='';
+  // Kurze Bestätigung
+  const btn = document.querySelector('.add-fahrer-btn');
+  btn.textContent='✅ Hinzugefügt';
+  setTimeout(()=>btn.textContent='+ Hinzufügen',1500);
+}
+
+function fahrerEntfernen(idx) {
+  const f = fahrerListe[idx];
+  if(!confirm(`Fahrer "${f.name}" entfernen?`)) return;
+  fahrerListe.splice(idx,1);
+  speichernFahrer();
+  renderFahrerChips();
+  renderVerwaltung();
+}
+
+// ── Abzüge ────────────────────────────────────────────────────────────────
+function addAbzug(typ, betrag) {
+  const id = ++abzugId;
+  const c = document.getElementById('abzug-container');
+  const div = document.createElement('div');
+  div.className = 'abzug-row';
+  div.id = 'abz-'+id;
+  div.innerHTML = `
+    <input type="number" placeholder="€" step="0.01" value="${betrag||''}" style="width:95px" oninput="berechne()">
+    <select onchange="berechne()">${ABZUG_TYPEN.map(t=>`<option${t==typ?' selected':''}>${t}</option>`).join('')}</select>
+    <button class="del" onclick="document.getElementById('abz-${id}').remove();berechne()">×</button>
+  `;
+  c.appendChild(div);
+  berechne();
+}
+
+function getAbzuege() {
+  let total=0; const list=[];
+  document.querySelectorAll('.abzug-row').forEach(r=>{
+    const b=parseFloat(r.querySelector('input').value||0);
+    const t=r.querySelector('select').value;
+    total+=b;
+    if(b) list.push({typ:t,betrag:b});
+  });
+  return {total,list};
+}
+
+// ── Berechnung ────────────────────────────────────────────────────────────
+function berechne() {
+  const fpA=parseFloat(document.getElementById('f-fp-a').value||0);
+  const fpE=parseFloat(document.getElementById('f-fp-e').value||0);
+  const tA =parseFloat(document.getElementById('f-tour-a').value||0);
+  const tE =parseFloat(document.getElementById('f-tour-e').value||0);
+  const tFP=fpE-fpA;
+  const tT=tE-tA;
+  const {total:abzGes}=getAbzuege();
+  const bar=tFP-abzGes;
+  document.getElementById('s-fp').textContent=EUR(tFP);
+  document.getElementById('s-tour').textContent=Math.round(tT);
+  document.getElementById('s-abz').textContent='− '+EUR(abzGes);
+  const barEl=document.getElementById('s-bar');
+  barEl.textContent=EUR(bar);
+  barEl.style.color=bar>=0?'var(--green)':'var(--red)';
+}
+
+// ── Speichern ─────────────────────────────────────────────────────────────
+function speichern() {
+  const fahrer=document.getElementById('f-fahrer').value.trim();
+  const taxi  =document.getElementById('f-taxi').value.trim();
+  const datum =document.getElementById('f-datum').value;
+  if(!fahrer||!datum){alert('Bitte Fahrer und Datum eingeben!');return;}
+  const fpA =parseFloat(document.getElementById('f-fp-a').value||0);
+  const fpE =parseFloat(document.getElementById('f-fp-e').value||0);
+  const tA  =parseFloat(document.getElementById('f-tour-a').value||0);
+  const tE  =parseFloat(document.getElementById('f-tour-e').value||0);
+  const totA=parseFloat(document.getElementById('f-total-a').value||0);
+  const totE=parseFloat(document.getElementById('f-total-e').value||0);
+  const {total:abzGes,list:abzList}=getAbzuege();
+  zettelListe.unshift({
+    id:Date.now(),fahrer,taxi,datum,
+    totalA:totA,totalE:totE,
+    tourA:tA,tourE:tE,
+    fpA,fpE,
+    tagesFP:fpE-fpA,
+    tagesTour:tE-tA,
+    abzGes,abzList,
+    bar:fpE-fpA-abzGes,
+    ts:new Date().toISOString()
+  });
+  speichernLS();
+  ['f-fahrer','f-taxi','f-total-a','f-total-e','f-tour-a','f-tour-e','f-fp-a','f-fp-e']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-datum').value=new Date().toISOString().split('T')[0];
+  document.getElementById('abzug-container').innerHTML='';
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel'));
+  berechne();
+  const t=document.getElementById('toast');
+  t.style.display='block';
+  setTimeout(()=>t.style.display='none',2500);
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+function resetBestaetigen() {
+  zettelListe=[];
+  fahrerListe=[...STANDARD_FAHRER];
+  speichernLS();
+  speichernFahrer();
+  document.getElementById('reset-modal').classList.add('hidden');
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-erfassen').classList.add('active');
+  document.querySelector('.tab-btn').classList.add('active');
+  renderFahrerChips();
+  renderVerwaltung();
+  alert('✅ Alle Daten wurden gelöscht.');
+}
+
+// ── Monat-Helper ──────────────────────────────────────────────────────────
+function monatKey(datum) {
+  if(!datum) return 'Unbekannt';
+  const [y,m] = datum.split('-');
+  const monate = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  return `${monate[parseInt(m)-1]} ${y}`;
+}
+
+function gruppiereNachMonat(liste) {
+  const gruppen = {};
+  liste.forEach(z => {
+    const k = monatKey(z.datum);
+    if(!gruppen[k]) gruppen[k]=[];
+    gruppen[k].push(z);
+  });
+  return gruppen;
+}
+
+// ── Liste rendern ─────────────────────────────────────────────────────────
+function filterFahrer(name, el) {
+  aktivFilter=name;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderListe();
+}
+
+function loeschen(id) {
+  if(!confirm('Zettel löschen?')) return;
+  zettelListe=zettelListe.filter(z=>z.id!==id);
+  speichernLS();
+  renderListe();
+}
+
+function renderListe() {
+  // Filter-Chips
+  const fb=document.getElementById('filter-bar');
+  const fahrer=[...new Set(zettelListe.map(z=>z.fahrer))];
+  fb.innerHTML=`<span class="filter-chip${aktivFilter===''?' active':''}" onclick="filterFahrer('',this)">Alle</span>`;
+  fahrer.forEach(f=>{
+    fb.innerHTML+=`<span class="filter-chip${aktivFilter===f?' active':''}" onclick="filterFahrer('${f}',this)">${f}</span>`;
+  });
+
+  const gefiltert=aktivFilter?zettelListe.filter(z=>z.fahrer===aktivFilter):zettelListe;
+  const c=document.getElementById('liste-container');
+  if(!gefiltert.length){
+    c.innerHTML='<div class="empty"><div class="ico">📋</div>Noch keine Zettel vorhanden.</div>';
+    return;
+  }
+
+  // Monatsgruppen
+  const gruppen=gruppiereNachMonat(gefiltert);
+  let html='';
+  Object.entries(gruppen).forEach(([monat, zettel], mi) => {
+    const monatId='monat-'+mi;
+    const ges=zettel.reduce((s,z)=>s+(z.tagesFP||0),0);
+    html+=`
+      <button class="monat-btn" onclick="toggleMonat('${monatId}')">
+        <span>📁 ${monat} <span style="font-size:12px;color:var(--text3)">(${zettel.length} Zettel)</span></span>
+        <span class="monat-badge">${EUR(ges)}</span>
+      </button>
+      <div class="monat-content" id="${monatId}">
+        ${zettel.map(z=>`
+          <div class="zettel-card">
+            <div class="zettel-head">
+              <div>
+                <span class="zettel-name">${z.fahrer}</span>
+                ${z.taxi?`<span class="taxi-badge" style="margin-left:6px">Taxi ${z.taxi}</span>`:''}
+                <div class="zettel-date">${z.datum.split('-').reverse().join('.')}</div>
+              </div>
+            </div>
+            <div class="zettel-grid">
+              <div class="kv"><div class="k">FP-Anfang</div><div class="v">${NUM2(z.fpA)}</div></div>
+              <div class="kv"><div class="k">FP-Ende</div><div class="v">${NUM2(z.fpE)}</div></div>
+              <div class="kv"><div class="k">Tages-FP</div><div class="v">${NUM2(z.tagesFP)} €</div></div>
+              <div class="kv"><div class="k">Touren</div><div class="v">${Math.round(z.tagesTour||0)}</div></div>
+              <div class="kv"><div class="k">Total Anf.</div><div class="v">${NUM2(z.totalA)}</div></div>
+              <div class="kv"><div class="k">Total Ende</div><div class="v">${NUM2(z.totalE)}</div></div>
+            </div>
+            ${z.abzList&&z.abzList.length?`<div class="abz-line">Abzüge: ${z.abzList.map(a=>`${a.typ} ${NUM2(a.betrag)} €`).join(' · ')}</div>`:''}
+            <div class="zettel-footer">
+              <div>
+                <div style="font-size:12px;color:var(--text3)">Bar-Summa</div>
+                <div class="bar-val ${z.bar>=0?'pos':'neg'}">${EUR(z.bar)}</div>
+              </div>
+              <button class="del-btn" onclick="loeschen(${z.id})">🗑 Löschen</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  });
+  c.innerHTML=html;
+  // Ersten Monat automatisch öffnen
+  if(Object.keys(gruppen).length>0) toggleMonat('monat-0');
+}
+
+function toggleMonat(id) {
+  const el=document.getElementById(id);
+  if(el) el.classList.toggle('open');
+}
+
+// ── Statistik rendern ─────────────────────────────────────────────────────
+function renderStatistik() {
+  const anz=zettelListe.length;
+  const gesFP=zettelListe.reduce((s,z)=>s+(z.tagesFP||0),0);
+  const gesBar=zettelListe.reduce((s,z)=>s+(z.bar||0),0);
+  const gesAbz=zettelListe.reduce((s,z)=>s+(z.abzGes||0),0);
+
+  document.getElementById('stat-grid').innerHTML=`
+    <div class="stat-box"><div class="stat-val">${anz}</div><div class="stat-lbl">Zettel gesamt</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:var(--blue);font-size:16px">${EUR(gesFP)}</div><div class="stat-lbl">Gesamt-Fahrpreis</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:var(--green);font-size:16px">${EUR(gesBar)}</div><div class="stat-lbl">Gesamt Bar-Summa</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:var(--red);font-size:16px">${EUR(gesAbz)}</div><div class="stat-lbl">Gesamt Abzüge</div></div>
+  `;
+
+  // Fahrer
+  const fahrer={};
+  zettelListe.forEach(z=>{
+    if(!fahrer[z.fahrer]) fahrer[z.fahrer]={anz:0,fp:0,bar:0,tour:0};
+    fahrer[z.fahrer].anz++;
+    fahrer[z.fahrer].fp  +=(z.tagesFP||0);
+    fahrer[z.fahrer].bar +=(z.bar||0);
+    fahrer[z.fahrer].tour+=(z.tagesTour||0);
+  });
+  const sorted=Object.entries(fahrer).sort((a,b)=>b[1].fp-a[1].fp);
+  document.getElementById('fahrer-stats').innerHTML=sorted.length
+    ?sorted.map(([n,d])=>`
+      <div class="fahrer-stat">
+        <div>
+          <div class="fn">${n}</div>
+          <div class="fd">${d.anz} Zettel · FP: ${EUR(d.fp)} · ${Math.round(d.tour)} Touren</div>
+        </div>
+        <div class="bar-val ${d.bar>=0?'pos':'neg'}" style="font-size:15px">${EUR(d.bar)}</div>
+      </div>`).join('')
+    :'<div class="empty">Keine Daten.</div>';
+
+  // Monatsübersicht
+  const gruppen=gruppiereNachMonat(zettelListe);
+  document.getElementById('monats-stats').innerHTML=Object.entries(gruppen).length
+    ?Object.entries(gruppen).map(([m,zl])=>{
+      const fp=zl.reduce((s,z)=>s+(z.tagesFP||0),0);
+      const bar=zl.reduce((s,z)=>s+(z.bar||0),0);
+      return `<div class="fahrer-stat">
+        <div><div class="fn">📁 ${m}</div><div class="fd">${zl.length} Zettel · FP: ${EUR(fp)}</div></div>
+        <div class="bar-val ${bar>=0?'pos':'neg'}" style="font-size:15px">${EUR(bar)}</div>
+      </div>`;
+    }).join('')
+    :'<div class="empty">Keine Daten.</div>';
+}
+
+// ── Excel Export ──────────────────────────────────────────────────────────
+function exportExcel() {
+  if(!zettelListe.length){alert('Keine Daten zum Exportieren!');return;}
+
+  // CSV mit Semikolon (Excel-kompatibel)
+  const bom='\uFEFF';
+  const cols=['Datum','Fahrer','Taxi-Nr','Total-Anfang','Total-Ende','Touren-Anfang','Touren-Ende',
+              'FP-Anfang','FP-Ende','Tages-FP','Tages-Touren','Abzüge-Gesamt','Bar-Summa','Abzüge-Detail'];
+  const rows=zettelListe.map(z=>[
+    z.datum.split('-').reverse().join('.'),
+    z.fahrer, z.taxi||'',
+    (z.totalA||0).toFixed(2).replace('.',','),
+    (z.totalE||0).toFixed(2).replace('.',','),
+    z.tourA||0, z.tourE||0,
+    (z.fpA||0).toFixed(2).replace('.',','),
+    (z.fpE||0).toFixed(2).replace('.',','),
+    (z.tagesFP||0).toFixed(2).replace('.',','),
+    Math.round(z.tagesTour||0),
+    (z.abzGes||0).toFixed(2).replace('.',','),
+    (z.bar||0).toFixed(2).replace('.',','),
+    z.abzList?z.abzList.map(a=>`${a.typ}:${a.betrag.toFixed(2)}`).join(' | '):''
+  ]);
+
+  const csv=bom+[cols,...rows].map(r=>r.join(';')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const heute=new Date().toISOString().split('T')[0];
+  a.download=`Taxi-Tageszettel-${heute}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+
+// ── Theme Toggle ──────────────────────────────────────────────────────────
+function initTheme() {
+  const saved = localStorage.getItem('taxi_theme');
+  if(saved === 'dark') {
+    document.body.classList.add('dark');
+    document.getElementById('theme-btn').textContent = '🌙';
+  } else {
+    document.body.classList.remove('dark');
+    document.getElementById('theme-btn').textContent = '☀️';
+  }
+}
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('taxi_theme', isDark ? 'dark' : 'light');
+  document.getElementById('theme-btn').textContent = isDark ? '🌙' : '☀️';
+}
+initTheme();
+
+// ── Service Worker ────────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
